@@ -17,8 +17,11 @@ class TradingEnv(gym.Env):
 
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, df, window_size):
+    def __init__(self, df, window_size,  frame_bound):
         assert df.ndim == 2
+
+        assert len(frame_bound) == 2
+        self.frame_bound = frame_bound
 
         self.seed()
         self.df = df
@@ -58,10 +61,10 @@ class TradingEnv(gym.Env):
         self._current_tick = self._start_tick
         self._last_trade_tick = self._current_tick - 1
         self._position = 0
-        self._position_history = (self.window_size * [None]) + [self._position]
+        self._position_history = (self.window_size * [None]) 
+        # self._position_history = (self.window_size * [None]) + [self._position]
         self._total_reward = 0.
-        self._total_profit = 1.  # unit
-        self._first_rendering = True
+        self._total_profit = 0.
         self.history = {}
         return self._get_observation()
 
@@ -73,41 +76,49 @@ class TradingEnv(gym.Env):
         last_price = self.prices[self._current_tick - 1]
         price_diff = current_price - last_price
 
-        # OPEN BUY
+        # OPEN BUY - 1
         if action == Actions.Buy.value and self._position == 0:
             self._position = 1
             step_reward += price_diff
+            self._last_trade_tick = self._current_tick - 1
+            self._position_history.append(1)
 
         elif action == Actions.Buy.value and self._position > 0:
             step_reward += 0
-        # CLOSE SELL
+            self._position_history.append(-1)
+        # CLOSE SELL - 4
         elif action == Actions.Buy.value and self._position < 0:
             self._position = 0
-            step_reward += -1 * price_diff
+            step_reward += -1 * (self.prices[self._current_tick -1] - self.prices[self._last_trade_tick]) 
+            self._total_profit += step_reward
+            self._position_history.append(4)
 
-
-        # OPEN SELL
+        # OPEN SELL - 3
         elif action == Actions.Sell.value and self._position == 0:
             self._position = -1
             step_reward += -1 * price_diff
-
-        # CLOSE BUY
+            self._last_trade_tick = self._current_tick - 1
+            self._position_history.append(3)
+        # CLOSE BUY - 2
         elif action == Actions.Sell.value and self._position > 0:
             self._position = 0
-            step_reward += price_diff
-            self._total_profit += self.prices[self._current_tick] - self.prices[self._last_trade_tick]
-
+            step_reward += self.prices[self._current_tick -1] - self.prices[self._last_trade_tick] 
+            self._total_profit += step_reward
+            self._position_history.append(2)
         elif action == Actions.Sell.value and self._position < 0:
             step_reward += 0
+            self._position_history.append(-1)
 
-        # DO NOTHING
+        # DO NOTHING - 0
         elif action == Actions.Do_nothing.value and self._position > 0:
             step_reward += price_diff
+            self._position_history.append(0)
         elif action == Actions.Do_nothing.value and self._position < 0:
             step_reward += -1 * price_diff
+            self._position_history.append(0)
         elif action == Actions.Do_nothing.value and self._position == 0:
             step_reward += -1 * abs(price_diff)
-
+            self._position_history.append(0)
 
         return step_reward
 
@@ -122,7 +133,6 @@ class TradingEnv(gym.Env):
         step_reward = self._calculate_reward(action)
         self._total_reward += step_reward
 
-        self._position_history.append(self._position)
         observation = self._get_observation()
         info = dict(
             total_reward = self._total_reward,
@@ -147,53 +157,36 @@ class TradingEnv(gym.Env):
 
 
     def render(self, mode='human'):
-
-        def _plot_position(position, tick):
-            color = None
-            if position < 0:
-                color = 'red'
-            elif position > 0:
-                color = 'green'
-            elif position == 0:
-                color = 'yellow'
-            if color:
-                plt.scatter(tick, self.prices[tick], color=color)
-
-        if self._first_rendering:
-            self._first_rendering = False
-            plt.cla()
-            plt.plot(self.prices)
-            start_position = self._position_history[self._start_tick]
-            _plot_position(start_position, self._start_tick)
-
-        _plot_position(self._position, self._current_tick)
-
-        plt.suptitle(
-            "Total Reward: %.6f" % self._total_reward + ' ~ ' +
-            "Total Profit: %.6f" % self._total_profit
-        )
-
-        plt.pause(0.01)
-
-
-    def render_all(self, mode='human'):
         window_ticks = np.arange(len(self._position_history))
         plt.plot(self.prices)
 
-        short_ticks = []
-        long_ticks = []
-        do_nothing_ticks = []
-        for i, tick in enumerate(window_ticks):
-            if self._position_history[i] < 0:
-                short_ticks.append(tick)
-            elif self._position_history[i] > 0 :
-                long_ticks.append(tick)
-            elif self._position_history[i] == 0 :
-                do_nothing_ticks.append(tick)
+        open_buy = []
+        close_buy = []
+        open_sell = []
+        close_sell = []
+        do_nothing = []
 
-        plt.plot(short_ticks, self.prices[short_ticks], 'ro')
-        plt.plot(long_ticks, self.prices[long_ticks], 'go')
-        plt.plot(do_nothing_ticks, self.prices[do_nothing_ticks], 'yo')
+        for i, tick in enumerate(window_ticks):
+            if self._position_history[i] is None:
+                continue
+
+            if self._position_history[i] == 1:
+                open_buy.append(tick)
+            elif self._position_history[i] == 2 :
+                close_buy.append(tick)
+            elif self._position_history[i] == 3 :
+                open_sell.append(tick)
+            elif self._position_history[i] == 4 :
+                close_sell.append(tick)
+            elif self._position_history[i] == 0 :
+                do_nothing.append(tick)
+
+        plt.plot(open_buy, self.prices[open_buy], 'go', marker="^")
+        plt.plot(close_buy, self.prices[close_buy], 'go', marker="v")
+        plt.plot(open_sell, self.prices[open_sell], 'ro', marker="v")
+        plt.plot(close_sell, self.prices[close_sell], 'ro', marker="^")
+    
+        plt.plot(do_nothing, self.prices[do_nothing], 'yo')
 
         plt.suptitle(
             "Total Reward: %.6f" % self._total_reward + ' ~ ' +
