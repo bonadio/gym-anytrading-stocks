@@ -77,7 +77,6 @@ class TradingEnv(gym.Env):
         if action == Actions.Buy.value and self._position == 0:
             self._position = 1
             step_reward += price_diff
-            self._last_trade_tick = self._current_tick - 1
 
         elif action == Actions.Buy.value and self._position > 0:
             step_reward += 0
@@ -85,21 +84,19 @@ class TradingEnv(gym.Env):
         elif action == Actions.Buy.value and self._position < 0:
             self._position = 0
             step_reward += -1 * price_diff
-            self._last_trade_tick = self._current_tick
 
-            # self._total_profit += step_reward
 
         # OPEN SELL
         elif action == Actions.Sell.value and self._position == 0:
             self._position = -1
             step_reward += -1 * price_diff
-            self._last_trade_tick = self._current_tick - 1
+
         # CLOSE BUY
         elif action == Actions.Sell.value and self._position > 0:
             self._position = 0
             step_reward += price_diff
             self._total_profit += self.prices[self._current_tick] - self.prices[self._last_trade_tick]
-            self._last_trade_tick = self._current_tick
+
         elif action == Actions.Sell.value and self._position < 0:
             step_reward += 0
 
