@@ -12,7 +12,6 @@ class Actions(Enum):
     Do_nothing = 2
 
 
-
 class TradingEnv(gym.Env):
 
     metadata = {'render.modes': ['human']}
