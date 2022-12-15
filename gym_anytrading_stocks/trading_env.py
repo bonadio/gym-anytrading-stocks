@@ -217,44 +217,44 @@ class TradingEnv(gym.Env):
         return prices, signal_features
 
 
-    def _update_profit(self, action):
-        trade = False
-        if ((action == Actions.Buy.value and self._position == Positions.Short) or
-            (action == Actions.Sell.value and self._position == Positions.Long)):
-            trade = True
+    # def _update_profit(self, action):
+    #     trade = False
+    #     if ((action == Actions.Buy.value and self._position == Positions.Short) or
+    #         (action == Actions.Sell.value and self._position == Positions.Long)):
+    #         trade = True
 
-        if trade or self._done:
-            current_price = self.prices[self._current_tick]
-            last_trade_price = self.prices[self._last_trade_tick]
+    #     if trade or self._done:
+    #         current_price = self.prices[self._current_tick]
+    #         last_trade_price = self.prices[self._last_trade_tick]
 
-            if self._position == Positions.Long:
-                shares = (self._total_profit * (1 - self.trade_fee_ask_percent)) / last_trade_price
-                self._total_profit = (shares * (1 - self.trade_fee_bid_percent)) * current_price
+    #         if self._position == Positions.Long:
+    #             shares = (self._total_profit * (1 - self.trade_fee_ask_percent)) / last_trade_price
+    #             self._total_profit = (shares * (1 - self.trade_fee_bid_percent)) * current_price
 
 
-    def max_possible_profit(self):
-        current_tick = self._start_tick
-        last_trade_tick = current_tick - 1
-        profit = 1.
+    # def max_possible_profit(self):
+    #     current_tick = self._start_tick
+    #     last_trade_tick = current_tick - 1
+    #     profit = 1.
 
-        while current_tick <= self._end_tick:
-            position = None
-            if self.prices[current_tick] < self.prices[current_tick - 1]:
-                while (current_tick <= self._end_tick and
-                       self.prices[current_tick] < self.prices[current_tick - 1]):
-                    current_tick += 1
-                position = Positions.Short
-            else:
-                while (current_tick <= self._end_tick and
-                       self.prices[current_tick] >= self.prices[current_tick - 1]):
-                    current_tick += 1
-                position = Positions.Long
+    #     while current_tick <= self._end_tick:
+    #         position = None
+    #         if self.prices[current_tick] < self.prices[current_tick - 1]:
+    #             while (current_tick <= self._end_tick and
+    #                    self.prices[current_tick] < self.prices[current_tick - 1]):
+    #                 current_tick += 1
+    #             position = Positions.Short
+    #         else:
+    #             while (current_tick <= self._end_tick and
+    #                    self.prices[current_tick] >= self.prices[current_tick - 1]):
+    #                 current_tick += 1
+    #             position = Positions.Long
 
-            if position == Positions.Long:
-                current_price = self.prices[current_tick - 1]
-                last_trade_price = self.prices[last_trade_tick]
-                shares = profit / last_trade_price
-                profit = shares * current_price
-            last_trade_tick = current_tick - 1
+    #         if position == Positions.Long:
+    #             current_price = self.prices[current_tick - 1]
+    #             last_trade_price = self.prices[last_trade_tick]
+    #             shares = profit / last_trade_price
+    #             profit = shares * current_price
+    #         last_trade_tick = current_tick - 1
 
-        return profit
+    #     return profit
